@@ -1,0 +1,640 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Obsidian 核心解读</title>
+  <style>
+    :root {
+      --bg: #080808;
+      --panel: #111;
+      --panel-2: #181818;
+      --text: #f4f1e8;
+      --muted: #9d9a91;
+      --line: #2d2d2d;
+      --hot: #e7ff39;
+      --cyan: #39ffd6;
+      --red: #ff4f39;
+      --ink: #050505;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      background:
+        linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px),
+        linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+        radial-gradient(circle at 82% 8%, rgba(231,255,57,.18), transparent 30%),
+        var(--bg);
+      background-size: 46px 46px, 46px 46px, auto, auto;
+      color: var(--text);
+      font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif;
+      line-height: 1.55;
+    }
+
+    a { color: inherit; }
+
+    .wrap {
+      width: min(1180px, calc(100% - 28px));
+      margin: 0 auto;
+      padding: 28px 0 64px;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 18px;
+      margin-bottom: 24px;
+      padding: 12px 0;
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      font-weight: 900;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .mark {
+      width: 26px;
+      height: 26px;
+      display: grid;
+      place-items: center;
+      background: var(--hot);
+      color: var(--ink);
+      font-weight: 950;
+    }
+
+    .nav {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .nav a {
+      padding: 7px 10px;
+      color: var(--muted);
+      border: 1px solid transparent;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .nav a:hover {
+      color: var(--text);
+      border-color: var(--line);
+      background: var(--panel);
+    }
+
+    .hero {
+      min-height: 640px;
+      display: grid;
+      grid-template-columns: 1.15fr .85fr;
+      gap: 16px;
+      align-items: stretch;
+    }
+
+    .hero-main,
+    .hero-side,
+    .block,
+    .strip,
+    .mistake,
+    .codebox {
+      border: 1px solid var(--line);
+      background: rgba(17,17,17,.88);
+      box-shadow: 0 30px 90px rgba(0,0,0,.42);
+    }
+
+    .hero-main {
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: clamp(26px, 5vw, 58px);
+    }
+
+    .hero-main::after {
+      content: "LINK";
+      position: absolute;
+      right: -26px;
+      bottom: -46px;
+      color: transparent;
+      -webkit-text-stroke: 1px rgba(231,255,57,.24);
+      font-size: clamp(110px, 22vw, 290px);
+      font-weight: 950;
+      line-height: .8;
+      letter-spacing: -.05em;
+    }
+
+    .tag {
+      width: fit-content;
+      margin: 0 0 28px;
+      padding: 8px 10px;
+      background: var(--hot);
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 950;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+
+    h1 {
+      position: relative;
+      z-index: 1;
+      max-width: 820px;
+      margin-bottom: 22px;
+      font-size: clamp(48px, 8vw, 104px);
+      line-height: .9;
+      letter-spacing: -.045em;
+    }
+
+    .lead {
+      position: relative;
+      z-index: 1;
+      max-width: 720px;
+      margin-bottom: 36px;
+      color: var(--muted);
+      font-size: clamp(18px, 2.2vw, 25px);
+    }
+
+    .verdict {
+      position: relative;
+      z-index: 1;
+      max-width: 800px;
+      padding: 20px;
+      border-left: 8px solid var(--hot);
+      background: #050505;
+      font-size: 23px;
+      font-weight: 900;
+      line-height: 1.38;
+    }
+
+    .verdict span { color: var(--hot); }
+
+    .hero-side {
+      padding: 18px;
+      display: grid;
+      grid-template-rows: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    .metric {
+      position: relative;
+      padding: 18px;
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      overflow: hidden;
+    }
+
+    .metric::before {
+      content: attr(data-no);
+      position: absolute;
+      right: 12px;
+      top: 4px;
+      color: rgba(255,255,255,.08);
+      font-size: 54px;
+      font-weight: 950;
+      line-height: 1;
+    }
+
+    .metric b {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--hot);
+      font-size: 20px;
+    }
+
+    .metric p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .block {
+      padding: 28px;
+    }
+
+    .span-12 { grid-column: span 12; }
+    .span-8 { grid-column: span 8; }
+    .span-6 { grid-column: span 6; }
+    .span-4 { grid-column: span 4; }
+
+    h2 {
+      margin-bottom: 18px;
+      font-size: clamp(30px, 4.5vw, 58px);
+      line-height: .95;
+      letter-spacing: -.035em;
+    }
+
+    h3 {
+      margin-bottom: 10px;
+      font-size: 23px;
+      line-height: 1.16;
+    }
+
+    .block p,
+    .mistake p {
+      color: var(--muted);
+    }
+
+    .bigpoint {
+      display: grid;
+      grid-template-columns: 90px 1fr;
+      gap: 18px;
+      align-items: start;
+      padding: 22px 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .bigpoint:first-of-type { border-top: 0; }
+
+    .bigpoint .num {
+      color: var(--hot);
+      font-size: 54px;
+      font-weight: 950;
+      line-height: 1;
+      letter-spacing: -.06em;
+    }
+
+    .compare {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .compare-card {
+      min-height: 260px;
+      padding: 22px;
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+    }
+
+    .compare-card.good {
+      background: var(--hot);
+      color: var(--ink);
+    }
+
+    .compare-card.good p { color: rgba(5,5,5,.72); }
+
+    .label {
+      display: inline-block;
+      margin-bottom: 18px;
+      padding: 5px 8px;
+      border: 1px solid currentColor;
+      font-size: 12px;
+      font-weight: 950;
+      letter-spacing: .08em;
+    }
+
+    .strip {
+      grid-column: span 12;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+    }
+
+    .strip div {
+      min-height: 170px;
+      padding: 20px;
+      border-right: 1px solid var(--line);
+    }
+
+    .strip div:last-child { border-right: 0; }
+
+    .strip b {
+      display: block;
+      margin-bottom: 10px;
+      color: var(--cyan);
+      font-size: 19px;
+    }
+
+    .route {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    .step {
+      min-height: 220px;
+      padding: 20px;
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+    }
+
+    .step strong {
+      display: block;
+      margin-bottom: 28px;
+      color: var(--hot);
+      font-size: 42px;
+      line-height: 1;
+    }
+
+    .codebox {
+      grid-column: span 12;
+      overflow: hidden;
+    }
+
+    .code-title {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--line);
+      background: #050505;
+      color: var(--hot);
+      font-weight: 950;
+    }
+
+    pre {
+      margin: 0;
+      padding: 24px;
+      overflow-x: auto;
+      color: #f7f1d4;
+      background: #0d0d0d;
+      font-family: Consolas, "Cascadia Mono", monospace;
+      font-size: 16px;
+      line-height: 1.7;
+    }
+
+    .mistake {
+      grid-column: span 4;
+      padding: 24px;
+      border-top: 6px solid var(--red);
+    }
+
+    .final {
+      margin-top: 16px;
+      padding: clamp(28px, 6vw, 64px);
+      background: var(--hot);
+      color: var(--ink);
+    }
+
+    .final h2 {
+      max-width: 900px;
+      margin-bottom: 18px;
+      font-size: clamp(42px, 7vw, 92px);
+    }
+
+    .final p {
+      max-width: 860px;
+      margin-bottom: 0;
+      color: rgba(5,5,5,.72);
+      font-size: 22px;
+      font-weight: 800;
+    }
+
+    @media (max-width: 920px) {
+      .hero,
+      .compare,
+      .route,
+      .strip {
+        grid-template-columns: 1fr;
+      }
+
+      .span-8,
+      .span-6,
+      .span-4,
+      .mistake {
+        grid-column: span 12;
+      }
+
+      .strip div {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+    }
+
+    @media (max-width: 620px) {
+      .wrap { width: min(100% - 18px, 1180px); }
+      .topbar { align-items: flex-start; flex-direction: column; }
+      .nav { justify-content: flex-start; }
+      .hero-main, .block { padding: 22px; }
+      .bigpoint { grid-template-columns: 1fr; }
+      .verdict { font-size: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="topbar">
+      <div class="brand"><span class="mark">O</span> Obsidian Core Map</div>
+      <nav class="nav" aria-label="页面导航">
+        <a href="#core">核心</a>
+        <a href="#power">强项</a>
+        <a href="#route">路线</a>
+        <a href="#start">开局</a>
+      </nav>
+    </header>
+
+    <section class="hero" id="core">
+      <div class="hero-main">
+        <div>
+          <p class="tag">直击核心</p>
+          <h1>Obsidian 强的不是记笔记，是把知识变成网络。</h1>
+          <p class="lead">普通软件帮你保存内容。Obsidian 帮你发现内容之间的关系，并让这些关系长期复利。</p>
+        </div>
+        <div class="verdict">一句话：<span>它是本地 Markdown 文件 + 双向链接 + 可扩展插件</span> 组成的个人知识系统。</div>
+      </div>
+
+      <aside class="hero-side">
+        <div class="metric" data-no="01">
+          <b>本地优先</b>
+          <p>文件在你电脑里，不被平台锁死，可备份，可 Git 管理。</p>
+        </div>
+        <div class="metric" data-no="02">
+          <b>双向链接</b>
+          <p>一篇笔记能自动连接另一篇，知识不再孤立。</p>
+        </div>
+        <div class="metric" data-no="03">
+          <b>关系图谱</b>
+          <p>看见你的知识中心、孤岛、主题分布和学习路径。</p>
+        </div>
+        <div class="metric" data-no="04">
+          <b>插件扩展</b>
+          <p>任务、日历、看板、PDF、闪卡、AI 都能逐步加。</p>
+        </div>
+      </aside>
+    </section>
+
+    <main class="grid">
+      <section class="block span-8" id="power">
+        <h2>最牛的 3 个能力</h2>
+        <div class="bigpoint">
+          <div class="num">01</div>
+          <div>
+            <h3>双向链接：让知识互相找得到</h3>
+            <p>你写 [[Git]]，它不只是一个链接。打开 Git 页面时，也能看到所有提到 Git 的笔记。知识开始形成上下文。</p>
+          </div>
+        </div>
+        <div class="bigpoint">
+          <div class="num">02</div>
+          <div>
+            <h3>本地 Markdown：你的资料真正属于你</h3>
+            <p>笔记就是普通 .md 文件。离开 Obsidian 也能打开，迁移、备份、版本管理都容易。</p>
+          </div>
+        </div>
+        <div class="bigpoint">
+          <div class="num">03</div>
+          <div>
+            <h3>插件生态：按需求升级成工作台</h3>
+            <p>前期只写笔记；后期可以加任务、项目、数据库视图、AI 总结、闪卡复习。它能跟着你的能力长大。</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="block span-4">
+        <h2>适合谁</h2>
+        <p>想长期学习、做项目沉淀、整理方法论、搭建个人知识库的人。</p>
+        <p>如果你只是随手记一句话，手机备忘录更快；如果你想把零散知识变成系统，Obsidian 更值。</p>
+      </section>
+
+      <section class="block span-12">
+        <h2>和常见软件的区别</h2>
+        <div class="compare">
+          <div class="compare-card">
+            <span class="label">普通笔记 / Word / 收藏夹</span>
+            <h3>保存内容</h3>
+            <p>能记录，但内容容易沉底。你主要靠搜索找东西，知识之间的关系不明显。</p>
+          </div>
+          <div class="compare-card good">
+            <span class="label">Obsidian</span>
+            <h3>组织关系</h3>
+            <p>每篇笔记都能变成节点。节点之间互相连接，最后形成你的个人知识地图。</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="strip" aria-label="Obsidian 用途">
+        <div>
+          <b>学习系统</b>
+          <p>课程、概念、问题、例子串起来。</p>
+        </div>
+        <div>
+          <b>项目资料库</b>
+          <p>需求、会议、方案、复盘能追溯。</p>
+        </div>
+        <div>
+          <b>个人 Wiki</b>
+          <p>常用知识沉淀成自己的说明书。</p>
+        </div>
+        <div>
+          <b>写作素材库</b>
+          <p>观点、案例、引用能快速组合。</p>
+        </div>
+        <div>
+          <b>AI 资料源</b>
+          <p>结构化笔记更适合喂给 AI 使用。</p>
+        </div>
+      </section>
+
+      <section class="block span-12" id="route">
+        <h2>学习路线：别贪多，先跑通闭环</h2>
+        <div class="route">
+          <div class="step">
+            <strong>1</strong>
+            <h3>会写</h3>
+            <p>标题、列表、代码块、引用。先把内容记下来。</p>
+          </div>
+          <div class="step">
+            <strong>2</strong>
+            <h3>会连</h3>
+            <p>用 [[双向链接]] 连接概念、项目、问题和资料。</p>
+          </div>
+          <div class="step">
+            <strong>3</strong>
+            <h3>会收</h3>
+            <p>做一个首页，把正在学、正在做、常用主题放进去。</p>
+          </div>
+          <div class="step">
+            <strong>4</strong>
+            <h3>会用</h3>
+            <p>写方案、复盘、问 AI、做项目时，从知识库调内容。</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="block span-6">
+        <h2>推荐文件夹</h2>
+        <p><strong>00-入口</strong>：首页、导航、长期主题。</p>
+        <p><strong>01-学习笔记</strong>：课程、书籍、软件学习。</p>
+        <p><strong>02-项目资料</strong>：项目记录、需求、方案。</p>
+        <p><strong>03-每日记录</strong>：想法、行动、复盘。</p>
+        <p><strong>99-附件</strong>：图片、PDF、截图。</p>
+      </section>
+
+      <section class="block span-6">
+        <h2>先别做的事</h2>
+        <p>别一上来追求完美分类。</p>
+        <p>别疯狂装插件。</p>
+        <p>别只收藏不消化。</p>
+        <p>Obsidian 的地基是：写下来、连起来、用起来。</p>
+      </section>
+
+      <section class="codebox" id="start">
+        <div class="code-title">
+          <span>第一篇首页模板</span>
+          <span>Markdown</span>
+        </div>
+        <pre># 我的知识库首页
+
+## 正在学习
+- [[Obsidian]]
+- [[Git]]
+- [[AI知识库]]
+
+## 项目
+- [[知识库运用学习]]
+
+## 常用主题
+- [[软件学习]]
+- [[个人知识管理]]
+- [[Markdown]]</pre>
+      </section>
+
+      <article class="mistake">
+        <h2>误区 1</h2>
+        <h3>把它当网盘</h3>
+        <p>只存资料没有价值。关键是写自己的理解和链接。</p>
+      </article>
+
+      <article class="mistake">
+        <h2>误区 2</h2>
+        <h3>插件先行</h3>
+        <p>插件是武器，不是地基。先把核心流程跑通。</p>
+      </article>
+
+      <article class="mistake">
+        <h2>误区 3</h2>
+        <h3>分类洁癖</h3>
+        <p>少纠结文件夹，多建立笔记之间的连接。</p>
+      </article>
+    </main>
+
+    <section class="final">
+      <h2>最终要领</h2>
+      <p>Obsidian 的真正价值：让你每天学到、做到、想到的东西，变成一个未来可以反复调用的个人知识系统。</p>
+    </section>
+  </div>
+</body>
+</html>
