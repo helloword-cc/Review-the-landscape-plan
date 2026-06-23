@@ -16,3 +16,6 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# 不上传的文件
+不上传文件/
